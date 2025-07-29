@@ -22,10 +22,10 @@ export default function TradingInterface() {
     } = useTradingState();
 
     return (
-        <div className="max-w-[100vw] min-h-screen">
+        <div className="max-w-[100vw] min-h-screen bg-gray-900 text-white">
             <div
                 className={cn(
-                    "grid gap-1 max-w-full mx-auto",
+                    "grid gap-1 max-w-full mx-auto p-1",
                     GRID_LAYOUTS.mobile,
                     GRID_LAYOUTS.tablet,
                     GRID_LAYOUTS.desktop,

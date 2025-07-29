@@ -1,5 +1,12 @@
 import { ChevronDown } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+    useTradingData,
+    formatPrice,
+    formatSize,
+    getPriceChangeColor,
+} from "@/services/TradingDataService";
 
 const tabsData = [
     { value: "balances", label: "Balances" },
@@ -42,23 +49,19 @@ const positionsColumns = [
 ];
 
 export function PositionsTable() {
+    const { balances, positions } = useTradingData();
+
     return (
         <div className="col-span-2 bg-gradient-to-br from-transparent via-white/10 to-white/5 text-center rounded-md h-[459px]">
             <Tabs defaultValue="balances" className="w-full gap-0 flex-1">
                 <TabsHeader />
 
                 <TabsContent className="px-3 py-1 text-white" value="balances">
-                    <DataTable
-                        columns={balancesColumns}
-                        emptyMessage="No balances yet"
-                    />
+                    <BalancesTable balances={balances} />
                 </TabsContent>
 
                 <TabsContent className="px-3 py-1 text-white" value="positions">
-                    <DataTable
-                        columns={positionsColumns}
-                        emptyMessage="No open positions yet"
-                    />
+                    <PositionsDataTable positions={positions} />
                 </TabsContent>
 
                 {tabsData.slice(2).map((tab) => (
@@ -111,42 +114,166 @@ function FilterDropdown() {
     );
 }
 
-interface Column {
-    key: string;
-    label: string;
-    width: string;
-    hasIcon?: boolean;
-}
+function BalancesTable({ balances }: { balances: any[] }) {
+    if (balances.length === 0) {
+        return <div className="text-xs/6 text-left">No balances yet</div>;
+    }
 
-interface DataTableProps {
-    columns: Column[];
-    emptyMessage: string;
-}
-
-function DataTable({ columns, emptyMessage }: DataTableProps) {
     return (
         <div className="overflow-x-auto">
             <table className="w-full">
                 <thead>
                     <tr>
-                        {columns.map((column) => (
+                        {balancesColumns.map((column) => (
                             <TableHeader key={column.key} column={column} />
                         ))}
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td
-                            colSpan={columns.length}
-                            className="text-xs/6 text-left"
+                    {balances.map((balance, index) => (
+                        <tr
+                            key={balance.asset}
+                            className="border-b border-slate-700/30"
                         >
-                            {emptyMessage}
-                        </td>
-                    </tr>
+                            <td className="text-left text-xs py-2">
+                                {balance.asset}
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                {balance.total.toFixed(2)}
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                {balance.available.toFixed(2)}
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                ${balance.usdValue.toFixed(2)}
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                $0.00 (0.00%)
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-xs"
+                                >
+                                    Send
+                                </Button>
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-xs"
+                                >
+                                    Transfer
+                                </Button>
+                            </td>
+                            <td className="text-left text-xs py-2">-</td>
+                        </tr>
+                    ))}
                 </tbody>
             </table>
         </div>
     );
+}
+
+function PositionsDataTable({ positions }: { positions: any[] }) {
+    if (positions.length === 0) {
+        return <div className="text-xs/6 text-left">No open positions yet</div>;
+    }
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full">
+                <thead>
+                    <tr>
+                        {positionsColumns.map((column) => (
+                            <TableHeader key={column.key} column={column} />
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {positions.map((position, index) => (
+                        <tr
+                            key={`${position.symbol}_${index}`}
+                            className="border-b border-slate-700/30"
+                        >
+                            <td className="text-left text-xs py-2">
+                                <div className="flex items-center gap-1">
+                                    <div className="w-4 h-4 rounded-full bg-sky-400"></div>
+                                    {position.symbol}
+                                </div>
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                <span
+                                    className={
+                                        position.side === "long"
+                                            ? "text-green-400"
+                                            : "text-red-400"
+                                    }
+                                >
+                                    {position.side === "long" ? "+" : "-"}
+                                    {formatSize(position.size)}
+                                </span>
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                $
+                                {(position.size * position.markPrice).toFixed(
+                                    2
+                                )}
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                {formatPrice(position.entryPrice)}
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                {formatPrice(position.markPrice)}
+                            </td>
+                            <td
+                                className={`text-left text-xs py-2 ${getPriceChangeColor(
+                                    position.pnl
+                                )}`}
+                            >
+                                ${position.pnl.toFixed(2)} (
+                                {position.pnlPercent.toFixed(2)}%)
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                {formatPrice(position.liquidationPrice)}
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                ${position.margin.toFixed(2)}
+                            </td>
+                            <td className="text-left text-xs py-2">$0.00</td>
+                            <td className="text-left text-xs py-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-xs"
+                                >
+                                    Close
+                                </Button>
+                            </td>
+                            <td className="text-left text-xs py-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-xs"
+                                >
+                                    TP/SL
+                                </Button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+interface Column {
+    key: string;
+    label: string;
+    width: string;
+    hasIcon?: boolean;
 }
 
 function TableHeader({ column }: { column: Column }) {

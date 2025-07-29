@@ -15,11 +15,13 @@ import {
     AreaSeries,
     CandlestickSeries,
     HistogramSeries,
+    UTCTimestamp,
 } from "lightweight-charts";
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
+import { useTradingData } from "@/services/TradingDataService";
 
 const TOOLTIP_CONFIG = {
-    HEIGHT: 22, // Reduced height for single line
+    HEIGHT: 22,
     PADDING: 8,
     COLORS: {
         PRIMARY: "#131722",
@@ -39,7 +41,7 @@ const TOOLTIP_CONFIG = {
 
 // Types
 interface ChartData {
-    time: Time;
+    time: UTCTimestamp;
     open: number;
     high: number;
     low: number;
@@ -48,38 +50,13 @@ interface ChartData {
     color?: string;
 }
 
-const generateData = (
-    startDate: Date,
-    count: number
-): { candlestickData: ChartData[]; volumeData: HistogramData[] } => {
-    const candlestickData: ChartData[] = [];
-    const volumeData: HistogramData[] = [];
-    let currentDate = new Date(startDate);
-    let lastClose = 100;
-
-    for (let i = 0; i < count; i++) {
-        const time = currentDate.toISOString().split("T")[0];
-
-        const open = lastClose + (Math.random() - 0.5) * 5;
-        const high = open + Math.random() * 5;
-        const low = open - Math.random() * 5;
-        const close = low + Math.random() * (high - low);
-
-        candlestickData.push({ time, open, high, low, close });
-
-        const volume = Math.floor(Math.random() * 1000000) + 100000;
-        const color =
-            close > open
-                ? TOOLTIP_CONFIG.COLORS.UP
-                : TOOLTIP_CONFIG.COLORS.DOWN;
-        volumeData.push({ time, value: volume, color });
-
-        lastClose = close;
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    return { candlestickData, volumeData };
-};
+interface CandleData {
+    time: UTCTimestamp;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+}
 
 const formatNumber = (num: number): string => {
     return num.toFixed(7);
@@ -122,10 +99,6 @@ const createTooltip = (): HTMLDivElement => {
     return tooltip;
 };
 
-// Generate initial data
-const { candlestickData: candlestickSeriesData, volumeData: volumeSeriesData } =
-    generateData(new Date(2023, 0, 1), 100);
-
 const chartOptions: DeepPartial<ChartOptions> = {
     layout: {
         textColor: "white",
@@ -139,6 +112,16 @@ const chartOptions: DeepPartial<ChartOptions> = {
             color: "rgba(197, 203, 206, 0.1)",
         },
     },
+    timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+    },
+    rightPriceScale: {
+        borderColor: "rgba(197, 203, 206, 0.1)",
+    },
+    crosshair: {
+        mode: 1,
+    },
 };
 
 export default function Chart() {
@@ -149,6 +132,150 @@ export default function Chart() {
     const tooltipRef = useRef<HTMLDivElement | null>(null);
     const symbolLabelRef = useRef<HTMLDivElement | null>(null);
 
+    // Get real-time trading data
+    const { marketData, recentTrades } = useTradingData();
+
+    // Store historical candlestick data
+    const [candlestickData, setCandlestickData] = useState<CandleData[]>([]);
+    const [volumeData, setVolumeData] = useState<HistogramData[]>([]);
+    const [lastTradeTime, setLastTradeTime] = useState<number>(0);
+
+    // Generate initial historical data
+    const generateInitialData = useCallback(() => {
+        const data: CandleData[] = [];
+        const volumes: HistogramData[] = [];
+        const startDate = new Date();
+        startDate.setHours(startDate.getHours() - 24); // 24 hours ago
+
+        let currentPrice = marketData.markPrice;
+
+        // Generate hourly candles for the last 24 hours
+        for (let i = 0; i < 24; i++) {
+            const time = Math.floor(
+                (startDate.getTime() + i * 3600000) / 1000
+            ) as UTCTimestamp;
+
+            const open = currentPrice;
+            const volatility = 0.02; // 2% volatility
+            const high = open + Math.random() * volatility * open;
+            const low = open - Math.random() * volatility * open;
+            const close = low + Math.random() * (high - low);
+
+            data.push({
+                time,
+                open,
+                high,
+                low,
+                close,
+            });
+
+            const volume = Math.floor(Math.random() * 100000) + 50000;
+            const color =
+                close > open
+                    ? TOOLTIP_CONFIG.COLORS.UP
+                    : TOOLTIP_CONFIG.COLORS.DOWN;
+
+            volumes.push({
+                time,
+                value: volume,
+                color,
+            });
+
+            currentPrice = close;
+        }
+
+        setCandlestickData(data);
+        setVolumeData(volumes);
+    }, [marketData.markPrice]);
+
+    // Update chart with new trade data
+    const updateChartWithTrades = useCallback(() => {
+        if (
+            !candlestickSeriesRef.current ||
+            !volumeSeriesRef.current ||
+            recentTrades.length === 0
+        ) {
+            return;
+        }
+
+        const latestTrade = recentTrades[0];
+        if (latestTrade.timestamp <= lastTradeTime) {
+            return; // No new trades
+        }
+
+        setLastTradeTime(latestTrade.timestamp);
+
+        // Get current time rounded to nearest minute for candle grouping
+        // Đảm bảo candleTime là số nguyên UNIX timestamp (giây), làm tròn xuống phút
+        const candleTime = (Math.floor(latestTrade.timestamp / 1000 / 60) *
+            60) as UTCTimestamp;
+
+        setCandlestickData((prevData) => {
+            const newData = [...prevData];
+            const lastCandle = newData[newData.length - 1];
+
+            if (lastCandle && Number(lastCandle.time) === candleTime) {
+                // Update existing candle
+                const updatedCandle: CandleData = {
+                    ...lastCandle,
+                    high: Math.max(lastCandle.high, latestTrade.price),
+                    low: Math.min(lastCandle.low, latestTrade.price),
+                    close: latestTrade.price,
+                };
+                newData[newData.length - 1] = updatedCandle;
+                candlestickSeriesRef.current?.update(updatedCandle);
+            } else {
+                // Create new candle
+                const newCandle: CandleData = {
+                    time: candleTime,
+                    open: latestTrade.price,
+                    high: latestTrade.price,
+                    low: latestTrade.price,
+                    close: latestTrade.price,
+                };
+                newData.push(newCandle);
+                candlestickSeriesRef.current?.update(newCandle);
+            }
+
+            return newData;
+        });
+
+        // Update volume data
+        setVolumeData((prevVolumes) => {
+            const newVolumes = [...prevVolumes];
+            const lastVolume = newVolumes[newVolumes.length - 1];
+
+            if (lastVolume && Number(lastVolume.time) === candleTime) {
+                // Update existing volume
+                const updatedVolume: HistogramData = {
+                    ...lastVolume,
+                    value: (lastVolume.value as number) + latestTrade.size,
+                    color:
+                        latestTrade.side === "buy"
+                            ? TOOLTIP_CONFIG.COLORS.UP
+                            : TOOLTIP_CONFIG.COLORS.DOWN,
+                };
+                newVolumes[newVolumes.length - 1] = updatedVolume;
+                volumeSeriesRef.current?.update(updatedVolume);
+            } else {
+                // Create new volume bar
+                const newVolume: HistogramData = {
+                    time: candleTime,
+                    value: latestTrade.size,
+                    color:
+                        latestTrade.side === "buy"
+                            ? TOOLTIP_CONFIG.COLORS.UP
+                            : TOOLTIP_CONFIG.COLORS.DOWN,
+                };
+                newVolumes.push(newVolume);
+                volumeSeriesRef.current?.update(newVolume);
+            }
+
+            return newVolumes;
+        });
+    }, [recentTrades, lastTradeTime]);
+
+    // Handle resize
     const handleResize = useCallback(() => {
         if (chartRef.current && chartContainerRef.current) {
             const newWidth = chartContainerRef.current.clientWidth;
@@ -164,26 +291,14 @@ export default function Chart() {
         }
     }, []);
 
-    useEffect(() => {
-        const resizeObserver = new ResizeObserver(() => {
-            handleResize();
-        });
-
-        if (chartContainerRef.current) {
-            resizeObserver.observe(chartContainerRef.current);
-        }
-
-        return () => {
-            resizeObserver.disconnect();
-        };
-    }, [handleResize]);
-
+    // Initialize chart
     useEffect(() => {
         if (!chartContainerRef.current) return;
 
-        // Initialize chart
+        // Create chart
         chartRef.current = createChart(chartContainerRef.current, chartOptions);
 
+        // Add candlestick series
         candlestickSeriesRef.current = chartRef.current.addSeries(
             CandlestickSeries,
             {
@@ -192,6 +307,11 @@ export default function Chart() {
                 borderVisible: false,
                 wickUpColor: TOOLTIP_CONFIG.COLORS.GREEN,
                 wickDownColor: TOOLTIP_CONFIG.COLORS.RED,
+                priceFormat: {
+                    type: "price",
+                    precision: 6,
+                    minMove: 0.000001,
+                },
             }
         );
 
@@ -202,9 +322,7 @@ export default function Chart() {
             },
         });
 
-        candlestickSeriesRef.current.setData(candlestickSeriesData);
-
-        // Setup volume series
+        // Add volume series
         volumeSeriesRef.current = chartRef.current.addSeries(HistogramSeries, {
             color: TOOLTIP_CONFIG.COLORS.UP,
             priceFormat: {
@@ -220,23 +338,101 @@ export default function Chart() {
             },
         });
 
-        volumeSeriesRef.current.setData(volumeSeriesData);
+        // Generate and set initial data
+        generateInitialData();
 
         chartRef.current.timeScale().fitContent();
 
-        window.addEventListener("resize", handleResize);
-
         // Cleanup
         return () => {
-            window.removeEventListener("resize", handleResize);
             if (chartRef.current) {
                 chartRef.current.remove();
             }
+        };
+    }, [generateInitialData]);
+
+    // Set initial data when it's ready
+    useEffect(() => {
+        if (candlestickSeriesRef.current && candlestickData.length > 0) {
+            const sortedData = [...candlestickData].sort(
+                (a, b) => Number(a.time) - Number(b.time)
+            );
+            candlestickSeriesRef.current.setData(sortedData);
+        }
+        if (volumeSeriesRef.current && volumeData.length > 0) {
+            const sortedVolume = [...volumeData].sort(
+                (a, b) => Number(a.time) - Number(b.time)
+            );
+            volumeSeriesRef.current.setData(sortedVolume);
+        }
+    }, [candlestickData, volumeData]);
+
+    // Update chart with new trades
+    useEffect(() => {
+        updateChartWithTrades();
+    }, [updateChartWithTrades]);
+
+    // Thêm useEffect sau khi đã có candlestickData và marketData
+    useEffect(() => {
+        setCandlestickData((prevData) => {
+            if (prevData.length === 0) return prevData;
+            const newData = [...prevData];
+            newData[newData.length - 1] = {
+                ...newData[newData.length - 1],
+                close: marketData.markPrice,
+            };
+            return newData;
+        });
+    }, [marketData.markPrice]);
+
+    // Handle resize
+    useEffect(() => {
+        const resizeObserver = new ResizeObserver(() => {
+            handleResize();
+        });
+
+        if (chartContainerRef.current) {
+            resizeObserver.observe(chartContainerRef.current);
+        }
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, [handleResize]);
+
+    // Add window resize listener
+    useEffect(() => {
+        window.addEventListener("resize", handleResize);
+        return () => {
+            window.removeEventListener("resize", handleResize);
         };
     }, [handleResize]);
 
     return (
         <div className="w-full h-full p-1 rounded-md shadow-md">
+            {/* <div className="p-2 flex items-center justify-between text-white">
+                <div className="flex items-center gap-4">
+                    <h3 className="text-sm font-semibold">CHILLGUY-USD</h3>
+                    <div className="flex items-center gap-2">
+                        <span className="text-lg font-mono">
+                            ${marketData.markPrice.toFixed(6)}
+                        </span>
+                        <span
+                            className={`text-sm px-2 py-1 rounded ${
+                                marketData.priceChangePercent24h >= 0
+                                    ? "text-green-400 bg-green-900/20"
+                                    : "text-red-400 bg-red-900/20"
+                            }`}
+                        >
+                            {marketData.priceChangePercent24h >= 0 ? "+" : ""}
+                            {marketData.priceChangePercent24h.toFixed(2)}%
+                        </span>
+                    </div>
+                </div>
+                <div className="text-xs text-gray-400">
+                    Volume: ${formatVolume(marketData.volume24h)}
+                </div>
+            </div> */}
             <div
                 ref={chartContainerRef}
                 className="w-full h-full relative rounded-md"

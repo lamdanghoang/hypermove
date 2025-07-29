@@ -2,6 +2,14 @@ import { SquareArrowOutUpRight } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CustomSelect from "@/components/ui/custom-select";
+import {
+    useTradingData,
+    formatPrice,
+    formatSize,
+    formatTime,
+    getPriceColor,
+    OrderBookLevel,
+} from "@/services/TradingDataService";
 
 const priceStepOptions = [
     { label: "0.000001", value: "0.000001" },
@@ -68,6 +76,8 @@ function OrderBookContent({
 }: {
     selectedPriceStepOption: string;
 }) {
+    const { orderBook } = useTradingData();
+
     return (
         <>
             <div className="px-2.5 py-2 flex items-center justify-between">
@@ -88,9 +98,15 @@ function OrderBookContent({
 
             <div className="min-h-0">
                 <div className="h-full grid grid-rows-[1fr_26px_1fr]">
-                    <OrderBookSide type="sell" />
-                    <SpreadIndicator />
-                    <OrderBookSide type="buy" />
+                    <OrderBookSide
+                        type="sell"
+                        levels={orderBook.asks.slice(0, 11).reverse()}
+                    />
+                    <SpreadIndicator spread={orderBook.spread} />
+                    <OrderBookSide
+                        type="buy"
+                        levels={orderBook.bids.slice(0, 11)}
+                    />
                 </div>
             </div>
         </>
@@ -113,38 +129,52 @@ function OrderBookHeader() {
     );
 }
 
-function OrderBookSide({ type }: { type: "buy" | "sell" }) {
+function OrderBookSide({
+    type,
+    levels,
+}: {
+    type: "buy" | "sell";
+    levels: OrderBookLevel[];
+}) {
     const colorClass = type === "sell" ? "text-red-400" : "text-green-400";
 
     return (
         <div className="flex flex-col justify-around gap-1">
-            {Array.from({ length: 11 }, (_, i) => (
+            {levels.map((level, i) => (
                 <div
                     key={i}
                     className="py-0.5 relative cursor-pointer grid grid-cols-[20%_40%_40%]"
                 >
                     <span className={`pl-2.5 text-xs ${colorClass}`}>
-                        0.075945
+                        {formatPrice(level.price)}
                     </span>
-                    <span className="text-xs text-right pr-1">38,898</span>
-                    <span className="pr-2.5 text-xs text-right">430,017</span>
+                    <span className="text-xs text-right pr-1">
+                        {formatSize(level.size)}
+                    </span>
+                    <span className="pr-2.5 text-xs text-right">
+                        {formatSize(level.total)}
+                    </span>
                 </div>
             ))}
         </div>
     );
 }
 
-function SpreadIndicator() {
+function SpreadIndicator({ spread }: { spread: number }) {
+    const spreadPercent = ((spread / 0.078) * 100).toFixed(3);
+
     return (
         <div className="my-1 flex gap-8 justify-center items-center text-xs bg-gray-700">
             <span>Spread</span>
-            <span>0.000085</span>
-            <span>0.078%</span>
+            <span>{formatPrice(spread)}</span>
+            <span>{spreadPercent}%</span>
         </div>
     );
 }
 
 function TradesContent() {
+    const { recentTrades } = useTradingData();
+
     return (
         <div className="h-full overflow-auto grid grid-rows-[auto_1fr]">
             <div className="px-2.5 my-2">
@@ -162,20 +192,24 @@ function TradesContent() {
             </div>
 
             <div className="min-h-0 h-[calc(670px-65px)]">
-                <div className="flex flex-col justify-around gap-1 h-[calc(100%-16px)] w-full overflow-auto hide-scrollbar -mt-1">
-                    {Array.from({ length: 50 }, (_, i) => (
+                <div className="flex flex-col justify-start gap-1 h-[calc(100%-16px)] w-full overflow-auto hide-scrollbar -mt-1">
+                    {recentTrades.map((trade, i) => (
                         <div
-                            key={i}
+                            key={trade.id}
                             className="py-0.5 relative cursor-pointer grid grid-cols-[20%_40%_40%]"
                         >
-                            <span className="pl-2.5 text-xs text-green-400">
-                                0.075945
+                            <span
+                                className={`pl-2.5 text-xs ${getPriceColor(
+                                    trade.side
+                                )}`}
+                            >
+                                {formatPrice(trade.price)}
                             </span>
                             <span className="text-xs text-right pr-1">
-                                38,898
+                                {formatSize(trade.size)}
                             </span>
                             <span className="flex items-center justify-end gap-1 pr-2.5 text-xs">
-                                <span>15:31:27</span>
+                                <span>{formatTime(trade.timestamp)}</span>
                                 <Link href="#">
                                     <SquareArrowOutUpRight className="w-3 h-3" />
                                 </Link>

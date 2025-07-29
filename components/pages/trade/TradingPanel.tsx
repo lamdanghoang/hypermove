@@ -22,6 +22,7 @@ import {
 import { PAIR_OPTIONS, COMMON_CLASSES } from "@/constants/constants";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { useTradingData, formatPrice } from "@/services/TradingDataService";
 
 interface TradingPanelProps {
     tradingState: TradingState;
@@ -200,7 +201,6 @@ function MarginModeModal({
         selectedMode
     );
 
-    // Reset temp mode when modal opens
     useEffect(() => {
         if (isOpen) {
             setTempMode(selectedMode);
@@ -213,7 +213,7 @@ function MarginModeModal({
     };
 
     const handleCancel = () => {
-        setTempMode(selectedMode); // Reset to original value
+        setTempMode(selectedMode);
         onClose();
     };
 
@@ -303,7 +303,6 @@ function LeverageModal({
 }) {
     const [tempLeverage, setTempLeverage] = useState<number>(leverage);
 
-    // Reset temp leverage when modal opens
     useEffect(() => {
         if (isOpen) {
             setTempLeverage(leverage);
@@ -316,7 +315,7 @@ function LeverageModal({
     };
 
     const handleCancel = () => {
-        setTempLeverage(leverage); // Reset to original value
+        setTempLeverage(leverage);
         onClose();
     };
 
@@ -420,6 +419,36 @@ function MarketOrderForm({
     onStateChange,
     onOptionChange,
 }: OrderFormProps) {
+    const { balances, marketData, placeOrder } = useTradingData();
+    const [orderSize, setOrderSize] = useState<number>(0);
+    const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+    const handlePlaceOrder = async () => {
+        if (orderSize <= 0) return;
+
+        setIsPlacingOrder(true);
+        try {
+            const result = await placeOrder({
+                symbol: "CHILLGUY-USD",
+                side: tradingState.selectedPosition === "long" ? "buy" : "sell",
+                type: "market",
+                size: orderSize,
+                reduceOnly: tradingState.selectedOption === "reduce-only",
+            });
+
+            if (result.success) {
+                setOrderSize(0);
+                onStateChange({ sizePercentage: 0 });
+            } else {
+                alert(result.error || "Order failed");
+            }
+        } catch (error) {
+            alert("Order failed");
+        } finally {
+            setIsPlacingOrder(false);
+        }
+    };
+
     return (
         <div className="h-full flex flex-col justify-between">
             <div className="px-3 h-full flex flex-col gap-2 flex-1">
@@ -429,11 +458,15 @@ function MarketOrderForm({
                         onStateChange({ selectedPosition: position })
                     }
                 />
-                <AccountInfo />
-                <SizeInput />
+                <AccountInfo balances={balances} />
+                <SizeInput orderSize={orderSize} setOrderSize={setOrderSize} />
                 <SizeSlider
                     tradingState={tradingState}
                     onStateChange={onStateChange}
+                    orderSize={orderSize}
+                    setOrderSize={setOrderSize}
+                    balances={balances}
+                    marketPrice={marketData.markPrice}
                 />
                 <OrderOptions
                     selectedOption={tradingState.selectedOption}
@@ -441,7 +474,13 @@ function MarketOrderForm({
                 />
                 <TakeProfitStopLoss />
             </div>
-            <OrderSummary />
+            <OrderSummary
+                onPlaceOrder={handlePlaceOrder}
+                isPlacingOrder={isPlacingOrder}
+                orderSize={orderSize}
+                marketPrice={marketData.markPrice}
+                selectedPosition={tradingState.selectedPosition}
+            />
         </div>
     );
 }
@@ -451,6 +490,38 @@ function LimitOrderForm({
     onStateChange,
     onOptionChange,
 }: OrderFormProps) {
+    const { balances, marketData, placeOrder } = useTradingData();
+    const [orderSize, setOrderSize] = useState<number>(0);
+    const [orderPrice, setOrderPrice] = useState<number>(marketData.markPrice);
+    const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+    const handlePlaceOrder = async () => {
+        if (orderSize <= 0 || orderPrice <= 0) return;
+
+        setIsPlacingOrder(true);
+        try {
+            const result = await placeOrder({
+                symbol: "CHILLGUY-USD",
+                side: tradingState.selectedPosition === "long" ? "buy" : "sell",
+                type: "limit",
+                size: orderSize,
+                price: orderPrice,
+                reduceOnly: tradingState.selectedOption === "reduce-only",
+            });
+
+            if (result.success) {
+                setOrderSize(0);
+                onStateChange({ sizePercentage: 0 });
+            } else {
+                alert(result.error || "Order failed");
+            }
+        } catch (error) {
+            alert("Order failed");
+        } finally {
+            setIsPlacingOrder(false);
+        }
+    };
+
     return (
         <div className="h-full flex flex-col justify-between">
             <div className="px-3 h-full flex flex-col gap-2 flex-1">
@@ -460,12 +531,20 @@ function LimitOrderForm({
                         onStateChange({ selectedPosition: position })
                     }
                 />
-                <AccountInfo />
-                <PriceInput />
-                <SizeInput />
+                <AccountInfo balances={balances} />
+                <PriceInput
+                    orderPrice={orderPrice}
+                    setOrderPrice={setOrderPrice}
+                    marketPrice={marketData.markPrice}
+                />
+                <SizeInput orderSize={orderSize} setOrderSize={setOrderSize} />
                 <SizeSlider
                     tradingState={tradingState}
                     onStateChange={onStateChange}
+                    orderSize={orderSize}
+                    setOrderSize={setOrderSize}
+                    balances={balances}
+                    marketPrice={orderPrice}
                 />
                 <LimitOrderOptions
                     selectedOption={tradingState.selectedOption}
@@ -473,7 +552,14 @@ function LimitOrderForm({
                 />
                 <TakeProfitStopLoss />
             </div>
-            <OrderSummary isLimit />
+            <OrderSummary
+                isLimit
+                onPlaceOrder={handlePlaceOrder}
+                isPlacingOrder={isPlacingOrder}
+                orderSize={orderSize}
+                marketPrice={orderPrice}
+                selectedPosition={tradingState.selectedPosition}
+            />
         </div>
     );
 }
@@ -511,40 +597,68 @@ function PositionSelector({
     );
 }
 
-function AccountInfo() {
+function AccountInfo({ balances }: { balances: any[] }) {
+    const usdcBalance = balances.find((b) => b.asset === "USDC");
+    const chillguyBalance = balances.find((b) => b.asset === "CHILLGUY");
+
     return (
         <div className="grid grid-cols-1 gap-1.5 items-center text-xs text-nowrap">
             <div className="flex items-center justify-between">
                 <span className="text-slate-400">Available to Trade</span>
-                <span>0.00</span>
+                <span>${usdcBalance?.available.toFixed(2) || "0.00"}</span>
             </div>
             <div className="flex items-center justify-between">
                 <span className="text-slate-400">Current Position</span>
-                <span>0.00 CHILLGUY</span>
+                <span>
+                    {chillguyBalance?.total.toFixed(2) || "0.00"} CHILLGUY
+                </span>
             </div>
         </div>
     );
 }
 
-function PriceInput() {
+function PriceInput({
+    orderPrice,
+    setOrderPrice,
+    marketPrice,
+}: {
+    orderPrice: number;
+    setOrderPrice: (price: number) => void;
+    marketPrice: number;
+}) {
     return (
         <div className="px-3 py-1 flex items-center gap-1.5 border rounded-md text-nowrap">
             <span className="text-slate-400 text-xs">Price (USD)</span>
             <Input
                 type="number"
+                value={orderPrice}
+                onChange={(e) => setOrderPrice(Number(e.target.value))}
                 className="py-1 h-fit text-right border-none hide-number-stepper text-xs md:text-xs"
             />
-            <div className="flex items-center gap-3 text-xs">Mid</div>
+            <div
+                className="flex items-center gap-3 text-xs cursor-pointer text-blue-400"
+                onClick={() => setOrderPrice(marketPrice)}
+            >
+                Mid
+            </div>
         </div>
     );
 }
 
-function SizeInput() {
+function SizeInput({
+    orderSize,
+    setOrderSize,
+}: {
+    orderSize: number;
+    setOrderSize: (size: number) => void;
+}) {
     return (
         <div className="px-3 py-1 flex items-center gap-1.5 border rounded-md">
             <span className="text-slate-400 text-xs">Size</span>
             <Input
                 type="number"
+                value={orderSize}
+                onChange={(e) => setOrderSize(Number(e.target.value))}
                 className="py-1 h-fit text-right border-none hide-number-stepper text-xs md:text-xs"
             />
             <div className="flex items-center gap-3">
@@ -562,20 +676,38 @@ function SizeInput() {
 function SizeSlider({
     tradingState,
     onStateChange,
+    orderSize,
+    setOrderSize,
+    balances,
+    marketPrice,
 }: {
     tradingState: TradingState;
     onStateChange: (updates: Partial<TradingState>) => void;
+    orderSize: number;
+    setOrderSize: (size: number) => void;
+    balances: any[];
+    marketPrice: number;
 }) {
-    // Get the current percentage value from trading state, default to 0
     const currentPercentage = tradingState.sizePercentage || 0;
+    const usdcBalance = balances.find((b) => b.asset === "USDC");
+    const availableBalance = usdcBalance?.available || 0;
 
     const handleSliderChange = (value: number[]) => {
-        onStateChange({ sizePercentage: value[0] });
+        const percentage = value[0];
+        const maxSize = availableBalance / marketPrice;
+        const newSize = (maxSize * percentage) / 100;
+
+        onStateChange({ sizePercentage: percentage });
+        setOrderSize(newSize);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = Math.min(100, Math.max(0, Number(e.target.value)));
-        onStateChange({ sizePercentage: value });
+        const percentage = Math.min(100, Math.max(0, Number(e.target.value)));
+        const maxSize = availableBalance / marketPrice;
+        const newSize = (maxSize * percentage) / 100;
+
+        onStateChange({ sizePercentage: percentage });
+        setOrderSize(newSize);
     };
 
     return (
@@ -768,21 +900,51 @@ function TPSLInput({
     );
 }
 
-function OrderSummary({ isLimit = false }: { isLimit?: boolean }) {
+function OrderSummary({
+    isLimit = false,
+    onPlaceOrder,
+    isPlacingOrder,
+    orderSize,
+    marketPrice,
+    selectedPosition,
+}: {
+    isLimit?: boolean;
+    onPlaceOrder: () => void;
+    isPlacingOrder: boolean;
+    orderSize: number;
+    marketPrice: number;
+    selectedPosition: PositionType;
+}) {
+    const orderValue = orderSize * marketPrice;
+    const fees = orderValue * 0.0004; // 0.04% fee
+    const slippage = isLimit ? "N/A" : "Est: 0% / Max: 8.00%";
+
     return (
         <div className="p-2.5 flex flex-col items-stretch gap-2.5">
-            <Button className="py-1.5 h-fit bg-gradient text-gray-800">
-                Connect
+            <Button
+                className="py-1.5 h-fit bg-gradient text-gray-800"
+                onClick={onPlaceOrder}
+                disabled={isPlacingOrder || orderSize <= 0}
+            >
+                {isPlacingOrder
+                    ? "Placing..."
+                    : `${
+                          selectedPosition === "long" ? "Buy" : "Sell"
+                      } ${orderSize.toFixed(2)} CHILLGUY`}
             </Button>
             <Separator className="bg-slate-400" />
             <div className="flex flex-col gap-2.5 justify-center">
                 <SummaryRow label="Liquidation Price" value="N/A" />
-                <SummaryRow label="Order Value" value="N/A" />
-                <SummaryRow label="Margin Required" value="N/A" />
-                {!isLimit && (
-                    <SummaryRow label="Slippage" value="Est: 0% / Max: 8.00%" />
-                )}
-                <SummaryRow label="Fees" value="0.0450% / 0.0150%" />
+                <SummaryRow
+                    label="Order Value"
+                    value={`${orderValue.toFixed(2)}`}
+                />
+                <SummaryRow
+                    label="Margin Required"
+                    value={`${orderValue.toFixed(2)}`}
+                />
+                {!isLimit && <SummaryRow label="Slippage" value={slippage} />}
+                <SummaryRow label="Fees" value={`${fees.toFixed(4)}`} />
             </div>
         </div>
     );
