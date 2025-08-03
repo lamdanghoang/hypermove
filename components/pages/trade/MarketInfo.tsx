@@ -53,7 +53,7 @@ function TokenPair() {
         <div className="flex items-center py-2 gap-3">
             <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-full bg-sky-400"></div>
-                <span className="text-xl text-nowrap">CHILLGUY-USD</span>
+                <span className="text-xl text-nowrap">BTC-USDT</span>
             </div>
             <ChevronDown className="w-5 h-5" />
         </div>
@@ -87,7 +87,7 @@ function MarketDataItem({ label, value, colorClass }: MarketDataItemProps) {
     return (
         <div className="grid grid-rows-2 gap-1">
             <span className="text-slate-400 text-xs">{label}</span>
-            <span className={`text-xs ${colorClass || ""}`}>{value}</span>
+            {/* <span className={`text-xs ${colorClass || ""}`}>{value}</span> */}
         </div>
     );
 }

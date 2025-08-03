@@ -11,8 +11,8 @@ export const PRICE_STEP_OPTIONS: SelectOption[] = [
 ];
 
 export const PAIR_OPTIONS: SelectOption[] = [
-    { label: "CHILLGUY", value: "CHILLGUY" },
-    { label: "USD", value: "USD" },
+    { label: "BTC", value: "BTC" },
+    { label: "USDT", value: "USDT" },
 ];
 
 export const PRO_ORDER_OPTIONS: SelectOption[] = [

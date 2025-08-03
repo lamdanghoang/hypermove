@@ -330,8 +330,8 @@ function LeverageModal({
 
                 <div className="space-y-6">
                     <p className="text-sm text-gray-400">
-                        Control the leverage used for CHILLGUY positions. The
-                        maximum leverage is 3x.
+                        Control the leverage used for BTC positions. The maximum
+                        leverage is 3x.
                     </p>
 
                     <div className="space-y-4">
@@ -429,7 +429,7 @@ function MarketOrderForm({
         setIsPlacingOrder(true);
         try {
             const result = await placeOrder({
-                symbol: "CHILLGUY-USD",
+                symbol: "BTC-USDT",
                 side: tradingState.selectedPosition === "long" ? "buy" : "sell",
                 type: "market",
                 size: orderSize,
@@ -501,7 +501,7 @@ function LimitOrderForm({
         setIsPlacingOrder(true);
         try {
             const result = await placeOrder({
-                symbol: "CHILLGUY-USD",
+                symbol: "BTC-USDT",
                 side: tradingState.selectedPosition === "long" ? "buy" : "sell",
                 type: "limit",
                 size: orderSize,
@@ -598,20 +598,18 @@ function PositionSelector({
 }
 
 function AccountInfo({ balances }: { balances: any[] }) {
-    const usdcBalance = balances.find((b) => b.asset === "USDC");
-    const chillguyBalance = balances.find((b) => b.asset === "CHILLGUY");
+    const usdtBalance = balances.find((b) => b.asset === "USDT");
+    const btcBalance = balances.find((b) => b.asset === "BTC");
 
     return (
         <div className="grid grid-cols-1 gap-1.5 items-center text-xs text-nowrap">
             <div className="flex items-center justify-between">
                 <span className="text-slate-400">Available to Trade</span>
-                <span>${usdcBalance?.available.toFixed(2) || "0.00"}</span>
+                <span>{usdtBalance?.available.toFixed(2) || "0.00"} USDT</span>
             </div>
             <div className="flex items-center justify-between">
                 <span className="text-slate-400">Current Position</span>
-                <span>
-                    {chillguyBalance?.total.toFixed(2) || "0.00"} CHILLGUY
-                </span>
+                <span>{btcBalance?.total.toFixed(2) || "0.00"} BTC</span>
             </div>
         </div>
     );
@@ -664,7 +662,7 @@ function SizeInput({
             <div className="flex items-center gap-3">
                 <CustomSelect
                     options={PAIR_OPTIONS}
-                    defaultValue="CHILLGUY"
+                    defaultValue="BTC"
                     className="min-w-21"
                     left={false}
                 />
@@ -930,7 +928,7 @@ function OrderSummary({
                     ? "Placing..."
                     : `${
                           selectedPosition === "long" ? "Buy" : "Sell"
-                      } ${orderSize.toFixed(2)} CHILLGUY`}
+                      } ${orderSize.toFixed(2)} BTC`}
             </Button>
             <Separator className="bg-slate-400" />
             <div className="flex flex-col gap-2.5 justify-center">

@@ -1,3 +1,5 @@
+"use client";
+
 import { SquareArrowOutUpRight } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +12,13 @@ import {
     getPriceColor,
     OrderBookLevel,
 } from "@/services/TradingDataService";
+import {
+    Order,
+    Trade,
+    useOrderBook,
+    useTradeStream,
+} from "@/services/BinanceWebSocketService";
+import { useEffect, useMemo } from "react";
 
 const priceStepOptions = [
     { label: "0.000001", value: "0.000001" },
@@ -18,11 +27,12 @@ const priceStepOptions = [
     { label: "0.00001", value: "0.00001" },
     { label: "0.0001", value: "0.0001" },
     { label: "0.001", value: "0.001" },
+    { label: "0.01", value: "0.01" },
 ];
 
 const pairOptions = [
-    { label: "CHILLGUY", value: "CHILLGUY" },
-    { label: "USD", value: "USD" },
+    { label: "BTC", value: "BTC" },
+    { label: "USDT", value: "USDT" },
 ];
 
 interface OrderBookProps {
@@ -30,6 +40,9 @@ interface OrderBookProps {
 }
 
 export function OrderBook({ selectedPriceStepOption }: OrderBookProps) {
+    const { bids, asks, spread, percentSpread } = useOrderBook("btcusdt", 10);
+    const trades = useTradeStream("btcusdt");
+
     return (
         <div className="bg-gradient-to-br from-transparent via-white/10 to-white/5 text-center rounded-md h-[670px]">
             <Tabs defaultValue="orderbook" className="w-full gap-0">
@@ -57,6 +70,10 @@ export function OrderBook({ selectedPriceStepOption }: OrderBookProps) {
                 <TabsContent className="text-white" value="orderbook">
                     <OrderBookContent
                         selectedPriceStepOption={selectedPriceStepOption}
+                        bids={bids}
+                        asks={asks}
+                        spread={spread}
+                        percentSpread={percentSpread}
                     />
                 </TabsContent>
 
@@ -64,7 +81,7 @@ export function OrderBook({ selectedPriceStepOption }: OrderBookProps) {
                     className="text-white h-[calc(100%-49px)]"
                     value="trades"
                 >
-                    <TradesContent />
+                    <TradesContent trades={trades} />
                 </TabsContent>
             </Tabs>
         </div>
@@ -73,11 +90,17 @@ export function OrderBook({ selectedPriceStepOption }: OrderBookProps) {
 
 function OrderBookContent({
     selectedPriceStepOption,
+    bids,
+    asks,
+    spread,
+    percentSpread,
 }: {
     selectedPriceStepOption: string;
+    bids: Order[];
+    asks: Order[];
+    spread: number | null;
+    percentSpread: number | null;
 }) {
-    const { orderBook } = useTradingData();
-
     return (
         <>
             <div className="px-2.5 py-2 flex items-center justify-between">
@@ -88,7 +111,7 @@ function OrderBookContent({
                 />
                 <CustomSelect
                     options={pairOptions}
-                    defaultValue="CHILLGUY"
+                    defaultValue="BTC"
                     className="min-w-21"
                     left={false}
                 />
@@ -98,15 +121,12 @@ function OrderBookContent({
 
             <div className="min-h-0">
                 <div className="h-full grid grid-rows-[1fr_26px_1fr]">
-                    <OrderBookSide
-                        type="sell"
-                        levels={orderBook.asks.slice(0, 11).reverse()}
+                    <OrderBookSide type="sell" levels={asks} />
+                    <SpreadIndicator
+                        spread={spread}
+                        percentSpread={percentSpread}
                     />
-                    <SpreadIndicator spread={orderBook.spread} />
-                    <OrderBookSide
-                        type="buy"
-                        levels={orderBook.bids.slice(0, 11)}
-                    />
+                    <OrderBookSide type="buy" levels={bids} />
                 </div>
             </div>
         </>
@@ -119,10 +139,10 @@ function OrderBookHeader() {
             <div className="grid grid-cols-[20%_40%_40%]">
                 <span className="text-xs text-slate-400 text-left">Price</span>
                 <span className="text-xs text-slate-400 text-right">
-                    Size (CHILLGUY)
+                    Size (BTC)
                 </span>
                 <span className="text-xs text-slate-400 text-right">
-                    Total (CHILLGUY)
+                    Total (BTC)
                 </span>
             </div>
         </div>
@@ -134,47 +154,92 @@ function OrderBookSide({
     levels,
 }: {
     type: "buy" | "sell";
-    levels: OrderBookLevel[];
+    levels: Order[];
 }) {
-    const colorClass = type === "sell" ? "text-red-400" : "text-green-400";
+    const isAsk = type === "sell";
+
+    const parsedLevels = useMemo(() => {
+        const sorted = [...levels].sort((a, b) =>
+            isAsk ? parseFloat(b[0]) - parseFloat(a[0]) : 0
+        );
+
+        const levelsForTotal = isAsk ? [...sorted].reverse() : sorted;
+
+        let tempTotal = 0;
+        const totals = levelsForTotal.map(([, size]) => {
+            tempTotal += parseFloat(size);
+            return tempTotal;
+        });
+
+        if (isAsk) totals.reverse();
+
+        return sorted.map(([p, s], i) => ({
+            price: parseFloat(p),
+            size: parseFloat(s),
+            total: totals[i],
+        }));
+    }, [levels]);
+
+    const maxTotal = useMemo(() => {
+        return parsedLevels.length > 0
+            ? Math.max(...parsedLevels.map((l) => l.total))
+            : 1;
+    }, [parsedLevels]);
+
+    const colorClass = isAsk ? "text-red-400" : "text-green-400";
 
     return (
         <div className="flex flex-col justify-around gap-1">
-            {levels.map((level, i) => (
-                <div
-                    key={i}
-                    className="py-0.5 relative cursor-pointer grid grid-cols-[20%_40%_40%]"
-                >
-                    <span className={`pl-2.5 text-xs ${colorClass}`}>
-                        {formatPrice(level.price)}
-                    </span>
-                    <span className="text-xs text-right pr-1">
-                        {formatSize(level.size)}
-                    </span>
-                    <span className="pr-2.5 text-xs text-right">
-                        {formatSize(level.total)}
-                    </span>
-                </div>
-            ))}
+            {parsedLevels.map(({ price, size, total }, i) => {
+                const percent = (total / maxTotal) * 100;
+
+                return (
+                    <div
+                        key={i}
+                        className="py-0.5 h-5.5 relative cursor-pointer"
+                    >
+                        <div
+                            className={`absolute inset-y-0 left-0 ${
+                                isAsk ? "bg-red-400/10" : "bg-green-400/10"
+                            }`}
+                            style={{ width: `${percent}%` }}
+                        />
+
+                        <div className="relative grid grid-cols-[20%_40%_40%] h-full items-center z-10">
+                            <span className={`pl-2.5 text-xs ${colorClass}`}>
+                                {price.toFixed(2)}
+                            </span>
+                            <span className="text-xs text-right pr-1">
+                                {size.toFixed(4)}
+                            </span>
+                            <span className="pr-2.5 text-xs text-right">
+                                {total.toFixed(4)}
+                            </span>
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     );
 }
 
-function SpreadIndicator({ spread }: { spread: number }) {
-    const spreadPercent = ((spread / 0.078) * 100).toFixed(3);
-
+function SpreadIndicator({
+    spread,
+    percentSpread,
+}: {
+    spread: number | null;
+    percentSpread: number | null;
+}) {
     return (
         <div className="my-1 flex gap-8 justify-center items-center text-xs bg-gray-700">
             <span>Spread</span>
-            <span>{formatPrice(spread)}</span>
-            <span>{spreadPercent}%</span>
+            <span>{formatPrice(spread || 0, 2)}</span>
+            <span>{formatPrice(percentSpread || 0, 5)}%</span>
         </div>
     );
 }
 
-function TradesContent() {
-    const { recentTrades } = useTradingData();
-
+function TradesContent({ trades }: { trades: Trade[] }) {
     return (
         <div className="h-full overflow-auto grid grid-rows-[auto_1fr]">
             <div className="px-2.5 my-2">
@@ -183,7 +248,7 @@ function TradesContent() {
                         Price
                     </span>
                     <span className="text-xs text-slate-400 text-right">
-                        Size (CHILLGUY)
+                        Size (BTC)
                     </span>
                     <span className="text-xs text-slate-400 text-right">
                         Time
@@ -193,20 +258,20 @@ function TradesContent() {
 
             <div className="min-h-0 h-[calc(670px-65px)]">
                 <div className="flex flex-col justify-start gap-1 h-[calc(100%-16px)] w-full overflow-auto hide-scrollbar -mt-1">
-                    {recentTrades.map((trade, i) => (
+                    {trades.map((trade, i) => (
                         <div
-                            key={trade.id}
+                            key={i}
                             className="py-0.5 relative cursor-pointer grid grid-cols-[20%_40%_40%]"
                         >
                             <span
                                 className={`pl-2.5 text-xs ${getPriceColor(
-                                    trade.side
+                                    trade.isBuyerMaker ? "sell" : "buy"
                                 )}`}
                             >
-                                {formatPrice(trade.price)}
+                                {formatPrice(trade.price, 2)}
                             </span>
                             <span className="text-xs text-right pr-1">
-                                {formatSize(trade.size)}
+                                {trade.quantity.toFixed(4)}
                             </span>
                             <span className="flex items-center justify-end gap-1 pr-2.5 text-xs">
                                 <span>{formatTime(trade.timestamp)}</span>

@@ -64,7 +64,7 @@ class TradingDataService {
 
     // Market data
     private marketData: MarketData = {
-        symbol: "CHILLGUY-USD",
+        symbol: "BTC-USDT",
         markPrice: 0.078231,
         oraclePrice: 0.0778,
         priceChange24h: 0.00147,
@@ -78,14 +78,14 @@ class TradingDataService {
     // Account data
     private accountBalances: AccountBalance[] = [
         {
-            asset: "USDC",
+            asset: "USDT",
             total: 10000,
             available: 8500,
             locked: 1500,
             usdValue: 10000,
         },
         {
-            asset: "CHILLGUY",
+            asset: "BTC",
             total: 50000,
             available: 35000,
             locked: 15000,
@@ -402,26 +402,26 @@ class TradingDataService {
         // Update balances
         if (order.side === "buy") {
             const usdcBalance = this.accountBalances.find(
-                (b) => b.asset === "USDC"
+                (b) => b.asset === "USDT"
             )!;
-            const chillguyBalance = this.accountBalances.find(
-                (b) => b.asset === "CHILLGUY"
+            const btcBalance = this.accountBalances.find(
+                (b) => b.asset === "BTC"
             )!;
 
             usdcBalance.available -= orderValue;
             usdcBalance.total -= orderValue;
-            chillguyBalance.available += order.size;
-            chillguyBalance.total += order.size;
+            btcBalance.available += order.size;
+            btcBalance.total += order.size;
         } else {
             const usdcBalance = this.accountBalances.find(
-                (b) => b.asset === "USDC"
+                (b) => b.asset === "USDT"
             )!;
-            const chillguyBalance = this.accountBalances.find(
-                (b) => b.asset === "CHILLGUY"
+            const btcBalance = this.accountBalances.find(
+                (b) => b.asset === "BTC"
             )!;
 
-            chillguyBalance.available -= order.size;
-            chillguyBalance.total -= order.size;
+            btcBalance.available -= order.size;
+            btcBalance.total -= order.size;
             usdcBalance.available += orderValue;
             usdcBalance.total += orderValue;
         }

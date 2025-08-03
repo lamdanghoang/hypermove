@@ -19,6 +19,14 @@ import {
 } from "lightweight-charts";
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import { useTradingData } from "@/services/TradingDataService";
+import {
+    subscribeBinanceKline,
+    BinanceKline,
+} from "@/services/BinanceWebSocketService";
+import {
+    BinanceKlineRest,
+    fetchBinanceKlines,
+} from "@/services/BinanceRestService";
 
 const TOOLTIP_CONFIG = {
     HEIGHT: 22,
@@ -140,140 +148,82 @@ export default function Chart() {
     const [volumeData, setVolumeData] = useState<HistogramData[]>([]);
     const [lastTradeTime, setLastTradeTime] = useState<number>(0);
 
-    // Generate initial historical data
-    const generateInitialData = useCallback(() => {
-        const data: CandleData[] = [];
-        const volumes: HistogramData[] = [];
-        const startDate = new Date();
-        startDate.setHours(startDate.getHours() - 24); // 24 hours ago
-
-        let currentPrice = marketData.markPrice;
-
-        // Generate hourly candles for the last 24 hours
-        for (let i = 0; i < 24; i++) {
-            const time = Math.floor(
-                (startDate.getTime() + i * 3600000) / 1000
-            ) as UTCTimestamp;
-
-            const open = currentPrice;
-            const volatility = 0.02; // 2% volatility
-            const high = open + Math.random() * volatility * open;
-            const low = open - Math.random() * volatility * open;
-            const close = low + Math.random() * (high - low);
-
-            data.push({
-                time,
-                open,
-                high,
-                low,
-                close,
-            });
-
-            const volume = Math.floor(Math.random() * 100000) + 50000;
-            const color =
-                close > open
-                    ? TOOLTIP_CONFIG.COLORS.UP
-                    : TOOLTIP_CONFIG.COLORS.DOWN;
-
-            volumes.push({
-                time,
-                value: volume,
-                color,
-            });
-
-            currentPrice = close;
-        }
-
-        setCandlestickData(data);
-        setVolumeData(volumes);
-    }, [marketData.markPrice]);
-
-    // Update chart with new trade data
-    const updateChartWithTrades = useCallback(() => {
-        if (
-            !candlestickSeriesRef.current ||
-            !volumeSeriesRef.current ||
-            recentTrades.length === 0
-        ) {
-            return;
-        }
-
-        const latestTrade = recentTrades[0];
-        if (latestTrade.timestamp <= lastTradeTime) {
-            return; // No new trades
-        }
-
-        setLastTradeTime(latestTrade.timestamp);
-
-        // Get current time rounded to nearest minute for candle grouping
-        // Đảm bảo candleTime là số nguyên UNIX timestamp (giây), làm tròn xuống phút
-        const candleTime = (Math.floor(latestTrade.timestamp / 1000 / 60) *
-            60) as UTCTimestamp;
-
-        setCandlestickData((prevData) => {
-            const newData = [...prevData];
-            const lastCandle = newData[newData.length - 1];
-
-            if (lastCandle && Number(lastCandle.time) === candleTime) {
-                // Update existing candle
-                const updatedCandle: CandleData = {
-                    ...lastCandle,
-                    high: Math.max(lastCandle.high, latestTrade.price),
-                    low: Math.min(lastCandle.low, latestTrade.price),
-                    close: latestTrade.price,
-                };
-                newData[newData.length - 1] = updatedCandle;
-                candlestickSeriesRef.current?.update(updatedCandle);
-            } else {
-                // Create new candle
-                const newCandle: CandleData = {
-                    time: candleTime,
-                    open: latestTrade.price,
-                    high: latestTrade.price,
-                    low: latestTrade.price,
-                    close: latestTrade.price,
-                };
-                newData.push(newCandle);
-                candlestickSeriesRef.current?.update(newCandle);
-            }
-
-            return newData;
-        });
-
-        // Update volume data
-        setVolumeData((prevVolumes) => {
-            const newVolumes = [...prevVolumes];
-            const lastVolume = newVolumes[newVolumes.length - 1];
-
-            if (lastVolume && Number(lastVolume.time) === candleTime) {
-                // Update existing volume
-                const updatedVolume: HistogramData = {
-                    ...lastVolume,
-                    value: (lastVolume.value as number) + latestTrade.size,
+    useEffect(() => {
+        async function loadHistory() {
+            const history = await fetchBinanceKlines("BTCUSDT", "1m", 500);
+            setCandlestickData(
+                history.map((item: BinanceKlineRest) => ({
+                    time: item.time as UTCTimestamp,
+                    open: item.open,
+                    high: item.high,
+                    low: item.low,
+                    close: item.close,
+                }))
+            );
+            setVolumeData(
+                history.map((item: BinanceKlineRest) => ({
+                    time: item.time as Time,
+                    value: item.volume,
                     color:
-                        latestTrade.side === "buy"
+                        item.close >= item.open
                             ? TOOLTIP_CONFIG.COLORS.UP
                             : TOOLTIP_CONFIG.COLORS.DOWN,
-                };
-                newVolumes[newVolumes.length - 1] = updatedVolume;
-                volumeSeriesRef.current?.update(updatedVolume);
-            } else {
-                // Create new volume bar
-                const newVolume: HistogramData = {
-                    time: candleTime,
-                    value: latestTrade.size,
-                    color:
-                        latestTrade.side === "buy"
-                            ? TOOLTIP_CONFIG.COLORS.UP
-                            : TOOLTIP_CONFIG.COLORS.DOWN,
-                };
-                newVolumes.push(newVolume);
-                volumeSeriesRef.current?.update(newVolume);
-            }
+                }))
+            );
+        }
+        loadHistory();
+    }, []);
 
-            return newVolumes;
-        });
-    }, [recentTrades, lastTradeTime]);
+    useEffect(() => {
+        if (candlestickData.length === 0) return;
+        const ws = subscribeBinanceKline(
+            "BTCUSDT",
+            "1m",
+            (kline: BinanceKline) => {
+                setCandlestickData((prev) => {
+                    const time = Math.floor(kline.t / 1000) as UTCTimestamp;
+                    const candle = {
+                        time,
+                        open: parseFloat(kline.o),
+                        high: parseFloat(kline.h),
+                        low: parseFloat(kline.l),
+                        close: parseFloat(kline.c),
+                    };
+
+                    if (
+                        prev.length > 0 &&
+                        prev[prev.length - 1].time === time
+                    ) {
+                        return [...prev.slice(0, -1), candle];
+                    } else {
+                        return [...prev, candle];
+                    }
+                });
+                setVolumeData((prev) => {
+                    const time = Math.floor(kline.t / 1000) as UTCTimestamp;
+                    const volume = {
+                        time,
+                        value: parseFloat(kline.v),
+                        color:
+                            parseFloat(kline.c) >= parseFloat(kline.o)
+                                ? TOOLTIP_CONFIG.COLORS.UP
+                                : TOOLTIP_CONFIG.COLORS.DOWN,
+                    };
+                    if (
+                        prev.length > 0 &&
+                        prev[prev.length - 1].time === time
+                    ) {
+                        return [...prev.slice(0, -1), volume];
+                    } else {
+                        return [...prev, volume];
+                    }
+                });
+            }
+        );
+        return () => {
+            ws.close();
+        };
+    }, [candlestickData.length]);
 
     // Handle resize
     const handleResize = useCallback(() => {
@@ -309,8 +259,8 @@ export default function Chart() {
                 wickDownColor: TOOLTIP_CONFIG.COLORS.RED,
                 priceFormat: {
                     type: "price",
-                    precision: 6,
-                    minMove: 0.000001,
+                    precision: 2,
+                    minMove: 0.01,
                 },
             }
         );
@@ -339,7 +289,7 @@ export default function Chart() {
         });
 
         // Generate and set initial data
-        generateInitialData();
+        // XÓA/BỎ QUA các hàm generateInitialData, updateChartWithTrades và các useEffect liên quan đến dữ liệu giả lập
 
         chartRef.current.timeScale().fitContent();
 
@@ -349,40 +299,38 @@ export default function Chart() {
                 chartRef.current.remove();
             }
         };
-    }, [generateInitialData]);
+    }, []);
 
-    // Set initial data when it's ready
+    // Giữ nguyên các useEffect render chart, setData cho candlestickSeriesRef và volumeSeriesRef
     useEffect(() => {
         if (candlestickSeriesRef.current && candlestickData.length > 0) {
-            const sortedData = [...candlestickData].sort(
-                (a, b) => Number(a.time) - Number(b.time)
-            );
+            const sortedData = [...candlestickData]
+                .sort((a, b) => Number(a.time) - Number(b.time))
+                .filter(
+                    (item, idx, arr) =>
+                        idx === 0 || item.time !== arr[idx - 1].time
+                );
             candlestickSeriesRef.current.setData(sortedData);
         }
         if (volumeSeriesRef.current && volumeData.length > 0) {
-            const sortedVolume = [...volumeData].sort(
-                (a, b) => Number(a.time) - Number(b.time)
-            );
+            const sortedVolume = [...volumeData]
+                .sort((a, b) => Number(a.time) - Number(b.time))
+                .filter(
+                    (item, idx, arr) =>
+                        idx === 0 || item.time !== arr[idx - 1].time
+                );
             volumeSeriesRef.current.setData(sortedVolume);
         }
     }, [candlestickData, volumeData]);
 
     // Update chart with new trades
     useEffect(() => {
-        updateChartWithTrades();
-    }, [updateChartWithTrades]);
+        // XÓA/BỎ QUA các hàm generateInitialData, updateChartWithTrades và các useEffect liên quan đến dữ liệu giả lập
+    }, []);
 
     // Thêm useEffect sau khi đã có candlestickData và marketData
     useEffect(() => {
-        setCandlestickData((prevData) => {
-            if (prevData.length === 0) return prevData;
-            const newData = [...prevData];
-            newData[newData.length - 1] = {
-                ...newData[newData.length - 1],
-                close: marketData.markPrice,
-            };
-            return newData;
-        });
+        // XÓA/BỎ QUA các hàm generateInitialData, updateChartWithTrades và các useEffect liên quan đến dữ liệu giả lập
     }, [marketData.markPrice]);
 
     // Handle resize
@@ -412,7 +360,7 @@ export default function Chart() {
         <div className="w-full h-full p-1 rounded-md shadow-md">
             {/* <div className="p-2 flex items-center justify-between text-white">
                 <div className="flex items-center gap-4">
-                    <h3 className="text-sm font-semibold">CHILLGUY-USD</h3>
+                    <h3 className="text-sm font-semibold">BTC-USD</h3>
                     <div className="flex items-center gap-2">
                         <span className="text-lg font-mono">
                             ${marketData.markPrice.toFixed(6)}

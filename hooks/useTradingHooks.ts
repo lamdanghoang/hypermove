@@ -13,7 +13,7 @@ export function useTradingState() {
         selectedFavorite: "percent",
         selectedPosition: "long",
         selectedOption: null,
-        selectedPriceStepOption: "0.001",
+        selectedPriceStepOption: "0.01",
         sizePercentage: 0,
         modalState: {
             marginMode: "cross",
