@@ -2,26 +2,33 @@ import { ChevronDown } from "lucide-react";
 import {
     useTradingData,
     formatPrice,
-    formatCountdown,
     getPriceChangeColor,
 } from "@/services/TradingDataService";
+import { useMarketStats } from "@/services/BinanceWebSocketService";
+import { formatCountdown } from "@/lib/tradingUtils";
 
 export function MarketInfo() {
-    const { marketData, fundingCountdown } = useTradingData();
+    const marketData = useMarketStats("btcusdt");
+
+    if (!marketData) return null;
 
     const marketDataItems = [
-        { label: "Mark", value: formatPrice(marketData.markPrice) },
-        { label: "Oracle", value: formatPrice(marketData.oraclePrice) },
+        { label: "Mark", value: formatPrice(marketData.markPrice, 2) },
         {
             label: "24h Change",
-            value: `${formatPrice(marketData.priceChange24h, 6)} / ${
-                marketData.priceChangePercent24h >= 0 ? "+" : ""
-            }${marketData.priceChangePercent24h.toFixed(2)}%`,
-            colorClass: getPriceChangeColor(marketData.priceChangePercent24h),
+            value: `${
+                marketData.priceChangePercent >= 0 ? "+" : "-"
+            }${formatPrice(
+                marketData.markPrice * (marketData.priceChangePercent / 100),
+                2
+            )} / ${
+                marketData.priceChangePercent >= 0 ? "+" : ""
+            }${marketData.priceChangePercent.toFixed(2)}%`,
+            colorClass: getPriceChangeColor(marketData.priceChangePercent),
         },
         {
             label: "24h Volume",
-            value: `$${marketData.volume24h.toLocaleString(undefined, {
+            value: `$${marketData.volume.toLocaleString(undefined, {
                 maximumFractionDigits: 2,
             })}`,
         },
@@ -35,7 +42,7 @@ export function MarketInfo() {
             label: "Funding / Countdown",
             value: `${(marketData.fundingRate * 100).toFixed(
                 4
-            )}% ${formatCountdown(fundingCountdown.nextFundingTime)}`,
+            )}% ${formatCountdown(marketData.nextFundingTime)}`,
             colorClass: getPriceChangeColor(marketData.fundingRate),
         },
     ];
@@ -87,7 +94,7 @@ function MarketDataItem({ label, value, colorClass }: MarketDataItemProps) {
     return (
         <div className="grid grid-rows-2 gap-1">
             <span className="text-slate-400 text-xs">{label}</span>
-            {/* <span className={`text-xs ${colorClass || ""}`}>{value}</span> */}
+            <span className={`text-xs ${colorClass || ""}`}>{value}</span>
         </div>
     );
 }

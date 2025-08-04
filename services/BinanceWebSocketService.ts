@@ -1,5 +1,4 @@
 // services/BinanceWebSocketService.ts
-import { useOrderBookStore } from "@/store/orderBookStore";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export type BinanceKline = {
@@ -103,8 +102,6 @@ export interface Trade {
 }
 
 export const useTradeStream = (symbol: string, maxTrades = 50) => {
-    const addTrade = useOrderBookStore((s) => s.addTrade);
-
     const [trades, setTrades] = useState<Trade[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
 
@@ -147,3 +144,58 @@ export const useTradeStream = (symbol: string, maxTrades = 50) => {
 
     return trades;
 };
+
+export interface MarketStats {
+    markPrice: number;
+    fundingRate: number;
+    nextFundingTime: number;
+    priceChangePercent: number;
+    volume: number;
+    openInterest: number;
+}
+
+export function useMarketStats(symbol: string): MarketStats | null {
+    const [data, setData] = useState<MarketStats | null>(null);
+
+    useEffect(() => {
+        if (!symbol) return;
+
+        const fetchStats = async () => {
+            try {
+                const [premiumRes, statsRes, oiRes] = await Promise.all([
+                    fetch(
+                        `https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${symbol}`
+                    ),
+                    fetch(
+                        `https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${symbol}`
+                    ),
+                    fetch(
+                        `https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`
+                    ),
+                ]);
+
+                const premium = await premiumRes.json();
+                const stats = await statsRes.json();
+                const oi = await oiRes.json();
+
+                setData({
+                    markPrice: parseFloat(premium.markPrice),
+                    fundingRate: parseFloat(premium.lastFundingRate),
+                    nextFundingTime: premium.nextFundingTime,
+                    priceChangePercent: parseFloat(stats.priceChangePercent),
+                    volume: parseFloat(stats.volume),
+                    openInterest: parseFloat(oi.openInterest),
+                });
+            } catch (error) {
+                console.error("Failed to fetch market stats:", error);
+            }
+        };
+
+        fetchStats();
+        const interval = setInterval(fetchStats, 1000); // every 1s
+
+        return () => clearInterval(interval);
+    }, [symbol]);
+
+    return data;
+}

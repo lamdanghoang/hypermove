@@ -27,15 +27,21 @@ export function formatTime(timestamp: number): string {
     });
 }
 
-// Format countdown timer
-export function formatCountdown(milliseconds: number): string {
-    const hours = Math.floor(milliseconds / 3600000);
-    const minutes = Math.floor((milliseconds % 3600000) / 60000);
-    const seconds = Math.floor((milliseconds % 60000) / 1000);
+export function formatCountdown(nextFundingTime: number): string {
+    const diff = nextFundingTime - Date.now();
+    if (diff <= 0) return "00:00:00";
 
-    return `${hours.toString().padStart(2, "0")}:${minutes
+    const hours = Math.floor(diff / 1000 / 3600)
         .toString()
-        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+        .padStart(2, "0");
+    const minutes = Math.floor((diff / 1000 / 60) % 60)
+        .toString()
+        .padStart(2, "0");
+    const seconds = Math.floor((diff / 1000) % 60)
+        .toString()
+        .padStart(2, "0");
+
+    return `${hours}:${minutes}:${seconds}`;
 }
 
 // Get color class for price changes
