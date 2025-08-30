@@ -1,6 +1,10 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Globe, Settings } from "lucide-react";
+import { useCurrentAccount } from "@mysten/dapp-kit";
+import { Globe, Settings } from "lucide-react";
 import Link from "next/link";
+import { WalletSelector } from "../wallet/ConnectButton";
 
 const navs = [
     { label: "Trade", url: "/trade" },
@@ -10,6 +14,8 @@ const navs = [
 ];
 
 const Header = () => {
+    const currentAccount = useCurrentAccount();
+
     return (
         <header className="fixed z-11 top-0 w-full min-h-14 px-4 py-3 bg-slate-800 box-border flex items-center justify-between">
             <div className="flex items-center gap-5.5">
@@ -27,15 +33,8 @@ const Header = () => {
                 </div>
             </div>
             <div className="flex items-center gap-2.5">
-                {false ? (
-                    <Button className="p-2 bg-teal-500 hover:bg-teal-600 text-white">
-                        Connect
-                    </Button>
-                ) : (
-                    <Button className="p-2 text-white bg-transparent hover:bg-transparent border-gray-600 border">
-                        0x39C5...7264
-                    </Button>
-                )}
+                <WalletSelector />
+
                 <Button className="p-0 w-8 h-8 text-white bg-transparent hover:bg-gray-700 border-gray-600 border">
                     <Globe className="w-4 h-4" />
                 </Button>

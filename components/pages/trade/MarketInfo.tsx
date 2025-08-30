@@ -13,7 +13,12 @@ export function MarketInfo() {
     if (!marketData) return null;
 
     const marketDataItems = [
-        { label: "Mark", value: formatPrice(marketData.markPrice, 2) },
+        {
+            label: "Mark",
+            value: marketData.markPrice.toLocaleString(undefined, {
+                maximumFractionDigits: 2,
+            }),
+        },
         {
             label: "24h Change",
             value: `${
