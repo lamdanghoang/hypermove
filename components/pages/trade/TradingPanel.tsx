@@ -43,7 +43,7 @@ export function TradingPanel({
                 COMMON_CLASSES.gradientBg,
                 "text-center",
                 COMMON_CLASSES.roundedMd,
-                "h-[670px]"
+                "h-[670px] w-full"
             )}
         >
             <div className="h-full flex flex-col items-center">

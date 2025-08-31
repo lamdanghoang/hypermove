@@ -42,10 +42,10 @@ export const MOCK_MARKET_DATA = {
 
 // UI Constants
 export const GRID_LAYOUTS = {
-    mobile: "grid-cols-1",
-    tablet: "md:grid-cols-1",
-    desktop: "lg:grid-cols-[785fr_312fr]",
-    xl: "xl:grid-cols-[895fr_266fr_266fr]",
+    mobile: "flex flex-wrap",
+    tablet: "md:grid md:grid-cols-1",
+    desktop: "lg:grid-cols-[auto_320px]",
+    xl: "xl:grid-cols-[auto_320px]",
 } as const;
 
 export const COMPONENT_HEIGHTS = {

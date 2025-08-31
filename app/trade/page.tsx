@@ -10,6 +10,7 @@ import { PositionsTable } from "@/components/pages/trade/PositionsTable";
 import { useTradingState } from "@/hooks/useTradingHooks";
 import { GRID_LAYOUTS, COMPONENT_HEIGHTS } from "@/constants/constants";
 import { cn } from "@/lib/utils";
+import { BinaryOptionPanel } from "@/components/pages/trade/BinaryOption";
 
 export default function TradingInterface() {
     const {
@@ -25,7 +26,7 @@ export default function TradingInterface() {
         <div className="max-w-[100vw] min-h-screen bg-gray-900 text-white">
             <div
                 className={cn(
-                    "grid gap-1 max-w-full mx-auto p-1",
+                    "gap-1 max-w-full mx-auto p-1",
                     GRID_LAYOUTS.mobile,
                     GRID_LAYOUTS.tablet,
                     GRID_LAYOUTS.desktop,
@@ -45,15 +46,8 @@ export default function TradingInterface() {
                     <TradingChart />
                 </div>
 
-                {/* Middle Column - Order Book */}
-                <OrderBook
-                    selectedPriceStepOption={
-                        tradingState.selectedPriceStepOption
-                    }
-                />
-
                 {/* Right Column - Trading Panel */}
-                <TradingPanel
+                <BinaryOptionPanel
                     tradingState={tradingState}
                     onStateChange={updateTradingState}
                     onOptionChange={handleOptionChange}
@@ -62,7 +56,7 @@ export default function TradingInterface() {
 
                 {/* Bottom Row - Positions and Account */}
                 <PositionsTable />
-                <AccountOverview />
+                {/* <AccountOverview /> */}
             </div>
         </div>
     );
