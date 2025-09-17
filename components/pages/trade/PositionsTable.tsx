@@ -52,7 +52,7 @@ export function PositionsTable() {
     const { balances, positions } = useTradingData();
 
     return (
-        <div className="col-span-2 bg-gradient-to-br from-transparent via-white/10 to-white/5 text-center rounded-md h-[459px]">
+        <div className="lg:col-span-2 xl:col-span-3 bg-gradient-to-br from-transparent via-white/10 to-white/5 text-center rounded-md h-[459px]">
             <Tabs defaultValue="balances" className="w-full gap-0 flex-1">
                 <TabsHeader />
 

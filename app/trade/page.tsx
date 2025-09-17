@@ -35,7 +35,7 @@ export default function TradingInterface() {
             >
                 {/* Left Column - Chart and Market Info */}
                 <div
-                    className="space-y-1"
+                    className="space-y-1 lg:col-span-2 xl:col-span-1"
                     style={{ height: COMPONENT_HEIGHTS.tradingInterface }}
                 >
                     <TradingHeader
@@ -47,12 +47,15 @@ export default function TradingInterface() {
                 </div>
 
                 {/* Right Column - Trading Panel */}
-                <BinaryOptionPanel
-                    tradingState={tradingState}
-                    onStateChange={updateTradingState}
-                    onOptionChange={handleOptionChange}
-                    onModalStateChange={updateModalState}
-                />
+                <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-1">
+                    <OrderBook selectedPriceStepOption="1" />
+                    <BinaryOptionPanel
+                        tradingState={tradingState}
+                        onStateChange={updateTradingState}
+                        onOptionChange={handleOptionChange}
+                        onModalStateChange={updateModalState}
+                    />
+                </div>
 
                 {/* Bottom Row - Positions and Account */}
                 <PositionsTable />
