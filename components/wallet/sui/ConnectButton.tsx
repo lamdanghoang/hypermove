@@ -7,7 +7,7 @@ import {
 } from "@mysten/dapp-kit";
 import { formatAddress } from "@mysten/sui/utils";
 import { useCallback, useState } from "react";
-import { Button } from "../ui/button";
+import { Button } from "../../ui/button";
 import { Copy, LogOut, Wallet } from "lucide-react";
 import "@mysten/dapp-kit/dist/index.css";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
+} from "../../ui/dropdown-menu";
 import { toast } from "sonner";
 
 interface WalletSelectorProps {

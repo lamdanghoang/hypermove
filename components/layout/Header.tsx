@@ -1,10 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useCurrentAccount } from "@mysten/dapp-kit";
-import { Globe, Menu, Settings, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import { WalletSelector } from "../wallet/ConnectButton";
+import { WalletSelector as SuiWalletSelector } from "@/components/wallet/sui/ConnectButton";
+import { WalletSelector as AptosWalletSelector } from "@/components/wallet/aptos/WalletConnect";
+
 import { useState } from "react";
 
 const navs = [
@@ -48,7 +49,8 @@ const Header = () => {
                 <div className="flex items-center gap-2.5">
                     {/* Desktop Actions - Hidden on small screens */}
                     <div className="hidden sm:flex items-center gap-2.5">
-                        <WalletSelector />
+                        <SuiWalletSelector />
+                        <AptosWalletSelector />
                         {/* <Button className="p-0 w-8 h-8 text-white bg-transparent hover:bg-gray-700 border-gray-600 border">
                             <Globe className="w-4 h-4" />
                         </Button>
@@ -102,7 +104,7 @@ const Header = () => {
                         {/* Mobile Actions */}
                         <div className="flex flex-col gap-3">
                             <div className="flex gap-3">
-                                <WalletSelector />
+                                <SuiWalletSelector />
                             </div>
                         </div>
                     </div>
