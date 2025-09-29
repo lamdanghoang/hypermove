@@ -1,8 +1,7 @@
-"use client";
-
 import Header from "@/components/layout/Header";
 import { AptosWalletProvider } from "../provider/AptosWalletProvider";
 import { SuiWalletProvider } from "../provider/SuiWalletProvider";
+import { ChainProvider } from "../context/ChainProvider";
 
 export default function Layout({
     children,
@@ -10,13 +9,15 @@ export default function Layout({
     children: React.ReactNode;
 }>) {
     return (
-        <AptosWalletProvider>
-            <SuiWalletProvider>
-                <div className="min-h-screen bg-background text-white">
-                    <Header />
-                    <main className="pt-15">{children}</main>
-                </div>
-            </SuiWalletProvider>
-        </AptosWalletProvider>
+        <ChainProvider>
+            <AptosWalletProvider>
+                <SuiWalletProvider>
+                    <div className="min-h-screen bg-background text-white">
+                        <Header />
+                        <main className="pt-15">{children}</main>
+                    </div>
+                </SuiWalletProvider>
+            </AptosWalletProvider>
+        </ChainProvider>
     );
 }

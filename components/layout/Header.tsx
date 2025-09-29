@@ -5,6 +5,8 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { WalletSelector as SuiWalletSelector } from "@/components/wallet/sui/ConnectButton";
 import { WalletSelector as AptosWalletSelector } from "@/components/wallet/aptos/WalletConnect";
+import { Chain, useChain } from "../context/ChainProvider";
+import { ChainSelector } from "./ChainSelector";
 
 import { useState } from "react";
 
@@ -17,6 +19,7 @@ const navs = [
 
 const Header = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const { chain } = useChain();
 
     const toggleMobileMenu = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -49,14 +52,13 @@ const Header = () => {
                 <div className="flex items-center gap-2.5">
                     {/* Desktop Actions - Hidden on small screens */}
                     <div className="hidden sm:flex items-center gap-2.5">
-                        <SuiWalletSelector />
-                        <AptosWalletSelector />
-                        {/* <Button className="p-0 w-8 h-8 text-white bg-transparent hover:bg-gray-700 border-gray-600 border">
-                            <Globe className="w-4 h-4" />
-                        </Button>
-                        <Button className="p-0 w-8 h-8 text-white bg-transparent hover:bg-gray-700 border-gray-600 border">
-                            <Settings className="w-4 h-4" />
-                        </Button> */}
+                        <ChainSelector />
+                        {(chain === Chain.APTOS_MAINNET ||
+                            chain === Chain.APTOS_TESTNET) && (
+                            <AptosWalletSelector />
+                        )}
+                        {(chain === Chain.SUI_MAINNET ||
+                            chain === Chain.SUI_TESTNET) && <SuiWalletSelector />}
                     </div>
 
                     {/* Mobile Menu Button - Visible only on small screens */}
@@ -104,7 +106,15 @@ const Header = () => {
                         {/* Mobile Actions */}
                         <div className="flex flex-col gap-3">
                             <div className="flex gap-3">
-                                <SuiWalletSelector />
+                                <ChainSelector />
+                                {(chain === Chain.APTOS_MAINNET ||
+                                    chain === Chain.APTOS_TESTNET) && (
+                                    <AptosWalletSelector />
+                                )}
+                                {(chain === Chain.SUI_MAINNET ||
+                                    chain === Chain.SUI_TESTNET) && (
+                                    <SuiWalletSelector />
+                                )}
                             </div>
                         </div>
                     </div>

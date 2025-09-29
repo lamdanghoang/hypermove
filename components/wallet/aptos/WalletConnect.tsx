@@ -96,7 +96,7 @@ export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
     ) : (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-                <Button className="bg-gradient hover:bg-primary/90 text-gray-800">
+                <Button className="min-w-40 bg-gradient hover:bg-primary/90 text-gray-800">
                     <Wallet className="h-4 w-4" />
                     Connect Wallet
                 </Button>
