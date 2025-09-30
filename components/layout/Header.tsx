@@ -13,8 +13,11 @@ import { useState } from "react";
 const navs = [
     { label: "Trade", url: "/trade" },
     { label: "Vaults", url: "/vaults" },
+    { label: "Dashboard", url: "/dashboard" },
+    { label: "Router", url: "/router" },
+    { label: "Protocols", url: "/protocols" },
     { label: "Portfolio", url: "/portfolio" },
-    { label: "Staking", url: "/staking" },
+    { label: "Settings", url: "/settings" },
 ];
 
 const Header = () => {
@@ -58,7 +61,9 @@ const Header = () => {
                             <AptosWalletSelector />
                         )}
                         {(chain === Chain.SUI_MAINNET ||
-                            chain === Chain.SUI_TESTNET) && <SuiWalletSelector />}
+                            chain === Chain.SUI_TESTNET) && (
+                            <SuiWalletSelector />
+                        )}
                     </div>
 
                     {/* Mobile Menu Button - Visible only on small screens */}

@@ -55,8 +55,9 @@ export function BinaryOptionPanel({
                         Your Entry
                     </span>
                     <div className="w-full my-2 p-0.5 gap-2 flex items-center flex-wrap">
-                        {entries.map((value: string) => (
+                        {entries.map((value: string, index: number) => (
                             <Button
+                                key={index}
                                 className={`px-5 py-3 w-16 h-fit hover:bg-gray-500 transition-colors ${
                                     entry === value
                                         ? "bg-gradient text-gray-800"
