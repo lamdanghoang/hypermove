@@ -2,13 +2,35 @@
 
 import AllocationChart from "@/components/charts/AllocationChart";
 import OverviewCard from "@/components/pages/dashboard/OverviewCard";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { BTCFI_DATA } from "@/data/btcfi-data";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function DashboardPage() {
     const { user_portfolio, native_btc, wrapped_btc } = BTCFI_DATA;
     const topProtocols = [...native_btc, ...wrapped_btc]
         .sort((a, b) => b.current_apy - a.current_apy)
         .slice(0, 5);
+    const router = useRouter();
+    const [btcAmount, setBtcAmount] = useState("1.0");
+    const [riskPreference, setRiskPreference] = useState("balanced");
+
+    const handleFindBestRoutes = () => {
+        router.push(
+            `/router?btcAmount=${btcAmount}&riskPreference=${riskPreference}`
+        );
+    };
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -66,33 +88,49 @@ export default function DashboardPage() {
                     </div>
                     <div className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-                            <div className="form-group">
-                                <label className="form-label">BTC Amount</label>
-                                <input
+                            <div className="flex flex-col gap-2">
+                                <Label>BTC Amount</Label>
+                                <Input
                                     type="number"
-                                    className="form-control"
-                                    defaultValue="1.0"
+                                    step={0.01}
+                                    min={0}
+                                    value={btcAmount}
+                                    onChange={(e) =>
+                                        setBtcAmount(e.target.value)
+                                    }
+                                    className="hide-number-stepper bg-gray-50 text-gray-800"
                                 />
                             </div>
-                            <div className="form-group">
-                                <label className="form-label">
-                                    Risk Preference
-                                </label>
-                                <select className="form-control">
-                                    <option value="conservative">
-                                        Conservative (5-7% APY)
-                                    </option>
-                                    <option value="balanced" selected>
-                                        Balanced (6-9% APY)
-                                    </option>
-                                    <option value="aggressive">
-                                        Aggressive (8-15% APY)
-                                    </option>
-                                </select>
+                            <div className="flex flex-col gap-2">
+                                <Label>Risk Preference</Label>
+                                <Select
+                                    value={riskPreference}
+                                    onValueChange={setRiskPreference}
+                                >
+                                    <SelectTrigger className="w-full bg-gray-50 text-gray-800">
+                                        <SelectValue placeholder="Select an option" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem value="conservative">
+                                                Conservative (5-7% APY)
+                                            </SelectItem>
+                                            <SelectItem value="balanced">
+                                                Balanced (6-9% APY)
+                                            </SelectItem>
+                                            <SelectItem value="aggressive">
+                                                Aggressive (8-15% APY)
+                                            </SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
                             </div>
-                            <button className="btn btn-primary">
+                            <Button
+                                onClick={handleFindBestRoutes}
+                                className="bg-gradient text-gray-800"
+                            >
                                 Find Best Routes
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
