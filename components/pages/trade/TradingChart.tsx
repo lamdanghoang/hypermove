@@ -1,4 +1,4 @@
-import Chart from "@/components/features/Chart";
+import Chart from "@/components/charts/Chart";
 
 export function TradingChart() {
     return (

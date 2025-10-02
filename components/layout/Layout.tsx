@@ -12,7 +12,7 @@ export default function Layout({
         <ChainProvider>
             <AptosWalletProvider>
                 <SuiWalletProvider>
-                    <div className="min-h-screen bg-background text-white">
+                    <div className="min-h-screen bg-gray-900 text-white">
                         <Header />
                         <main className="pt-15">{children}</main>
                     </div>
