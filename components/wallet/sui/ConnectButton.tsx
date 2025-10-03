@@ -21,12 +21,22 @@ import { toast } from "sonner";
 
 interface WalletSelectorProps {
     className?: string;
+    open?: boolean;
+    onOpenChange?: (isOpen: boolean) => void;
 }
 
-export function WalletSelector({ className }: WalletSelectorProps) {
-    const [open, setOpen] = useState(false);
+export function WalletSelector({
+    className,
+    open,
+    onOpenChange,
+}: WalletSelectorProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
     const currentAccount = useCurrentAccount();
     const { mutate: disconnect } = useDisconnectWallet();
+
+    const isControlled = open !== undefined && onOpenChange !== undefined;
+    const modalOpen = isControlled ? open : internalOpen;
+    const setModalOpen = isControlled ? onOpenChange : setInternalOpen;
 
     const copyAddress = useCallback(async () => {
         if (!currentAccount) return;
@@ -63,7 +73,7 @@ export function WalletSelector({ className }: WalletSelectorProps) {
                     <DropdownMenuItem
                         onSelect={() => {
                             disconnect();
-                            setOpen(false);
+                            if (setModalOpen) setModalOpen(false);
                         }}
                         className="gap-2 focus:text-gray-800 cursor-pointer"
                     >
@@ -76,13 +86,17 @@ export function WalletSelector({ className }: WalletSelectorProps) {
     return (
         <ConnectModal
             trigger={
-                <Button className="min-w-40 bg-gradient hover:bg-primary/90 text-gray-800">
-                    <Wallet className="h-4 w-4" />
-                    Connect Wallet
-                </Button>
+                !isControlled ? (
+                    <Button className="min-w-40 bg-gradient hover:bg-primary/90 text-gray-800">
+                        <Wallet className="h-4 w-4" />
+                        Connect Wallet
+                    </Button>
+                ) : (
+                    <></>
+                )
             }
-            open={open}
-            onOpenChange={(isOpen) => setOpen(isOpen)}
+            open={modalOpen}
+            onOpenChange={setModalOpen}
         />
     );
 }

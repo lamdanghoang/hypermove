@@ -9,7 +9,7 @@ export const customTheme: ThemeVars = {
         primaryButton: "#F6F7F9",
         primaryButtonHover: "#F0F2F5",
         outlineButtonHover: "#F4F4F5",
-        modalOverlay: "rgba(24 36 53 / 20%)",
+        modalOverlay: "rgba(0 0 0 / 50%)",
         modalPrimary: "white",
         modalSecondary: "#F7F8F8",
         iconButton: "transparent",

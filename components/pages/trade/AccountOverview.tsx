@@ -87,13 +87,21 @@ function ActionButtons() {
     );
 }
 
+interface AccountInfo {
+    label: string;
+    value: string;
+    colorClass?: string;
+}
+
+interface AccountDetailsProps {
+    accountEquityData: AccountInfo[];
+    perpsOverviewData: AccountInfo[];
+}
+
 function AccountDetails({
     accountEquityData,
     perpsOverviewData,
-}: {
-    accountEquityData: any[];
-    perpsOverviewData: any[];
-}) {
+}: AccountDetailsProps) {
     return (
         <div className="flex flex-col gap-3 text-left">
             <AccountSection title="Account Equity" data={accountEquityData} />
@@ -104,7 +112,7 @@ function AccountDetails({
 
 interface AccountSectionProps {
     title: string;
-    data: Array<{ label: string; value: string; colorClass?: string }>;
+    data: AccountInfo[];
 }
 
 function AccountSection({ title, data }: AccountSectionProps) {

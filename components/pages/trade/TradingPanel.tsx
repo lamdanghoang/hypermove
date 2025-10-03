@@ -597,7 +597,17 @@ function PositionSelector({
     );
 }
 
-function AccountInfo({ balances }: { balances: any[] }) {
+interface Balance {
+    asset: string;
+    available: number;
+    total: number;
+}
+
+interface AccountInfoProps {
+    balances: Balance[];
+}
+
+function AccountInfo({ balances }: AccountInfoProps) {
     const usdtBalance = balances.find((b) => b.asset === "USDT");
     const btcBalance = balances.find((b) => b.asset === "BTC");
 
@@ -671,6 +681,15 @@ function SizeInput({
     );
 }
 
+interface SizeSliderProps {
+    tradingState: TradingState;
+    onStateChange: (updates: Partial<TradingState>) => void;
+    orderSize: number;
+    setOrderSize: (size: number) => void;
+    balances: Balance[];
+    marketPrice: number;
+}
+
 function SizeSlider({
     tradingState,
     onStateChange,
@@ -678,14 +697,7 @@ function SizeSlider({
     setOrderSize,
     balances,
     marketPrice,
-}: {
-    tradingState: TradingState;
-    onStateChange: (updates: Partial<TradingState>) => void;
-    orderSize: number;
-    setOrderSize: (size: number) => void;
-    balances: any[];
-    marketPrice: number;
-}) {
+}: SizeSliderProps) {
     const currentPercentage = tradingState.sizePercentage || 0;
     const usdcBalance = balances.find((b) => b.asset === "USDC");
     const availableBalance = usdcBalance?.available || 0;

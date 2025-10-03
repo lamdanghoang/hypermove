@@ -133,7 +133,7 @@ export function validateOrder(order: {
 }
 
 // Debounce function for input handling
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
     func: T,
     wait: number
 ): (...args: Parameters<T>) => void {
@@ -201,7 +201,7 @@ export function getOrderBookLevelIntensity(
 }
 
 // Calculate average price from order book levels
-export function calculateAveragePrice(levels: any[], depth: number): number {
+export function calculateAveragePrice(levels: { price: number; size: number }[], depth: number): number {
     const relevantLevels = levels.slice(0, depth);
     const totalValue = relevantLevels.reduce(
         (sum, level) => sum + level.price * level.size,
@@ -221,12 +221,12 @@ export function generateTradeId(): string {
 }
 
 // Check if price is valid
-export function isValidPrice(price: any): boolean {
+export function isValidPrice(price: unknown): boolean {
     return typeof price === "number" && price > 0 && isFinite(price);
 }
 
 // Check if size is valid
-export function isValidSize(size: any): boolean {
+export function isValidSize(size: unknown): boolean {
     return typeof size === "number" && size > 0 && isFinite(size);
 }
 
@@ -347,7 +347,7 @@ export const performance = {
 // WebSocket connection helper
 export function createWebSocketConnection(
     url: string,
-    onMessage: (data: any) => void,
+    onMessage: (data: unknown) => void,
     onError?: (error: Event) => void,
     onClose?: (event: CloseEvent) => void
 ): WebSocket | null {

@@ -72,7 +72,13 @@ function TokenPair() {
     );
 }
 
-function MarketDataGrid({ marketDataItems }: { marketDataItems: any[] }) {
+interface MarketDataItemProps {
+    label: string;
+    value: string;
+    colorClass?: string;
+}
+
+function MarketDataGrid({ marketDataItems }: { marketDataItems: MarketDataItemProps[] }) {
     return (
         <div className="overflow-x-auto hide-scrollbar">
             <div className="overflow-x-auto hide-scrollbar grid grid-cols-[repeat(6,auto)] gap-8 items-center text-nowrap">
@@ -87,12 +93,6 @@ function MarketDataGrid({ marketDataItems }: { marketDataItems: any[] }) {
             </div>
         </div>
     );
-}
-
-interface MarketDataItemProps {
-    label: string;
-    value: string;
-    colorClass?: string;
 }
 
 function MarketDataItem({ label, value, colorClass }: MarketDataItemProps) {

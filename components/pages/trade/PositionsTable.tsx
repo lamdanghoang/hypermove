@@ -114,7 +114,18 @@ function FilterDropdown() {
     );
 }
 
-function BalancesTable({ balances }: { balances: any[] }) {
+interface Balance {
+    asset: string;
+    total: number;
+    available: number;
+    usdValue: number;
+}
+
+interface BalancesTableProps {
+    balances: Balance[];
+}
+
+function BalancesTable({ balances }: BalancesTableProps) {
     if (balances.length === 0) {
         return <div className="text-xs/6 text-left">No balances yet</div>;
     }
@@ -177,7 +188,23 @@ function BalancesTable({ balances }: { balances: any[] }) {
     );
 }
 
-function PositionsDataTable({ positions }: { positions: any[] }) {
+interface Position {
+    symbol: string;
+    side: "long" | "short";
+    size: number;
+    markPrice: number;
+    entryPrice: number;
+    pnl: number;
+    pnlPercent: number;
+    liquidationPrice: number;
+    margin: number;
+}
+
+interface PositionsDataTableProps {
+    positions: Position[];
+}
+
+function PositionsDataTable({ positions }: PositionsDataTableProps) {
     if (positions.length === 0) {
         return <div className="text-xs/6 text-left">No open positions yet</div>;
     }
